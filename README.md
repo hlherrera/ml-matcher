@@ -65,6 +65,7 @@ Similar architecture can be used for other services like Amazon Rekognition to p
 
 ## Deployment
 
+- Run "npm run build" to build infrastructure
 - Run "cdk bootstrap"
 - Run "cdk deploy" to deploy stack
 
@@ -92,7 +93,7 @@ Similar architecture can be used for other services like Amazon Rekognition to p
 
 ## Source code
 
-- [textract-pipeline-stack.ts](./textract-pipeline/lib/textract-pipeline-stack.ts) CDK code to define infrastrucure including IAM roles, Lambda functions, SQS queues etc.
+- [textract-pipeline-stack.ts](./textract-pipeline/lib/textract-pipeline-stack.ts) CDK code to define infrastructure including IAM roles, Lambda functions, SQS queues etc.
 
 ## Delete stack
 

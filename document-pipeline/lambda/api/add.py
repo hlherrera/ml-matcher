@@ -7,7 +7,7 @@ from uuid import uuid4
 import boto3
 
 
-def lambda_handler(event, context):
+def handler(event, context):
     dt = round(datetime.datetime.utcnow().timestamp()*1000)
     file_content = base64.b64decode(event['body'])
     key = 'f-{}-{}.pdf'.format(dt, str(uuid4()))
@@ -29,7 +29,8 @@ def lambda_handler(event, context):
             "Access-Control-Allow-Credentials": True
         },
         'body': json.dumps({
-            'dt': dt,
+            'id': dt,
+            'bucket': os.environ.get('BUCKET_NAME'),
             'key': key
         }),
         "isBase64Encoded": False

@@ -19,6 +19,7 @@ import ec2 = require("@aws-cdk/aws-ec2");
 import ecr = require("@aws-cdk/aws-ecr");
 import apiGW = require("@aws-cdk/aws-apigateway");
 import apiPI = require("@aws-cdk/aws-apigatewayv2-integrations");
+import autoscaling = require("@aws-cdk/aws-applicationautoscaling");
 
 import path = require("path");
 
@@ -476,7 +477,7 @@ export class DocumentPipelineStack extends cdk.Stack {
       vpc: vpc,
       securityGroup: efsSecurityGroup,
       throughputMode: efs.ThroughputMode.PROVISIONED,
-      provisionedThroughputPerSecond: cdk.Size.mebibytes(3),
+      provisionedThroughputPerSecond: cdk.Size.mebibytes(10),
       removalPolicy: cdk.RemovalPolicy.DESTROY,
     });
 
@@ -493,7 +494,7 @@ export class DocumentPipelineStack extends cdk.Stack {
       },
     });
 
-    // Lambda function to execute inference.
+    // Lambda function to code and index document.
     const addDocumentFunction = new lambda.DockerImageFunction(
       this,
       "DocumentExecuteInference" + ENV,
@@ -555,7 +556,7 @@ export class DocumentPipelineStack extends cdk.Stack {
       {
         runtime: lambda.Runtime.PYTHON_3_8,
         code: lambda.Code.fromAsset("lambda/api"),
-        handler: "add.lambda_handler",
+        handler: "add.handler",
         timeout: cdk.Duration.seconds(30),
         environment: {
           BUCKET_NAME: contentBucket.bucketName,
@@ -569,20 +570,70 @@ export class DocumentPipelineStack extends cdk.Stack {
       })
     );
 
-    const getDocumentAPIFunction = new lambda.Function(
+    // Lambda function to make inference.
+    const getDocumentAPIFunction = new lambda.DockerImageFunction(
       this,
-      "getDocumentAPIFn" + ENV,
+      "getDocumentInferenceAPIFn" + ENV,
       {
-        runtime: lambda.Runtime.PYTHON_3_8,
-        code: lambda.Code.fromAsset("lambda/api"),
-        handler: "get.lambda_handler",
-        timeout: cdk.Duration.seconds(30),
-        environment: {},
+        code: lambda.DockerImageCode.fromImageAsset(
+          path.join(__dirname, "..", "lambda"),
+          {
+            entrypoint: ["/lambda-entrypoint.sh"],
+            cmd: ["get.handler"],
+          }
+        ),
+        timeout: cdk.Duration.seconds(60),
+        memorySize: 5120,
+        logRetention: 180,
+        reservedConcurrentExecutions: 10,
+        vpc,
+        vpcSubnets: vpc.selectSubnets({ subnetType: ec2.SubnetType.PRIVATE }),
+        filesystem: lambda.FileSystem.fromEfsAccessPoint(
+          efsAccessPoint,
+          MODEL_PATH
+        ),
+        environment: {
+          DOCUMENTS_TABLE: documentsTable.tableName,
+          MODEL_PATH,
+          SENTENCE_TRANSFORMERS_HOME: MODEL_PATH,
+          MODEL_NAME: "distilbert-multilingual-nli-stsb-quora-ranking",
+        },
       }
     );
 
+    const target = new autoscaling.ScalableTarget(
+      this,
+      "GetDocumentScalableTarget-" + ENV,
+      {
+        serviceNamespace: autoscaling.ServiceNamespace.LAMBDA,
+        maxCapacity: 10,
+        minCapacity: 1,
+        resourceId: `function:${getDocumentAPIFunction.functionName}:${getDocumentAPIFunction.currentVersion.version}`,
+        scalableDimension: "lambda:function:ProvisionedConcurrency",
+      }
+    );
+
+    target.scaleToTrackMetric("GetDocumentMetric-" + ENV, {
+      targetValue: 0.9,
+      predefinedMetric:
+        autoscaling.PredefinedMetric.LAMBDA_PROVISIONED_CONCURRENCY_UTILIZATION,
+    });
+
+    //permissions
+    getDocumentAPIFunction.role?.addManagedPolicy(
+      iam.ManagedPolicy.fromAwsManagedPolicyName(
+        "AmazonElasticFileSystemClientFullAccess"
+      )
+    );
+    getDocumentAPIFunction.addToRolePolicy(
+      new iam.PolicyStatement({
+        actions: ["dynamodb:GetItem"],
+        resources: [documentsTable.tableArn],
+      })
+    );
+
     apiDocs.addMethod(
-      "POST",
+      "PUT",
       new apiGW.LambdaIntegration(addDocumentAPIFunction, {
         contentHandling: apiGW.ContentHandling.CONVERT_TO_TEXT,
       }),
@@ -601,7 +652,7 @@ export class DocumentPipelineStack extends cdk.Stack {
     );
 
     apiDocs.addMethod(
-      "GET",
+      "POST",
       new apiGW.LambdaIntegration(getDocumentAPIFunction)
     );
   }

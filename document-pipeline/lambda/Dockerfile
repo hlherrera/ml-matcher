@@ -24,6 +24,7 @@ RUN mkdir -p /mnt/model
 
 # Copy source code files
 COPY helper/python/* ${LAMBDA_TASK_ROOT}/
+COPY api/* ${LAMBDA_TASK_ROOT}/
 COPY mlmodel/app/* ${LAMBDA_TASK_ROOT}/
 
 ENV MODEL_PATH=/mnt/model
