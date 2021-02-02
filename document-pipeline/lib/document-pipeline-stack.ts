@@ -28,6 +28,7 @@ const BUS_EVENT = "TextractEventBus" + ENV;
 const BUS_EVENT_SOURCE = "textract.pipeline";
 const BUS_EVENT_DETAIL_TYPE = "Document Text Extracted";
 const MODEL_PATH = "/mnt/model";
+const MODEL_NAME = "distilbert-multilingual-nli-stsb-quora-ranking";
 
 const getNLTKLayer = (version = 27) => {
   return `arn:aws:lambda:${process.env.AWS_REGION}:770693421928:layer:Klayers-python38-nltk:${version}`;
@@ -517,7 +518,7 @@ export class DocumentPipelineStack extends cdk.Stack {
           DOCUMENTS_TABLE: documentsTable.tableName,
           MODEL_PATH,
           SENTENCE_TRANSFORMERS_HOME: MODEL_PATH,
-          MODEL_NAME: "distilbert-multilingual-nli-stsb-quora-ranking",
+          MODEL_NAME,
         },
       }
     );
@@ -596,7 +597,7 @@ export class DocumentPipelineStack extends cdk.Stack {
           DOCUMENTS_TABLE: documentsTable.tableName,
           MODEL_PATH,
           SENTENCE_TRANSFORMERS_HOME: MODEL_PATH,
-          MODEL_NAME: "distilbert-multilingual-nli-stsb-quora-ranking",
+          MODEL_NAME,
         },
       }
     );
