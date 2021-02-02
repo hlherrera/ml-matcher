@@ -561,15 +561,28 @@ export class DocumentPipelineStack extends cdk.Stack {
         timeout: cdk.Duration.seconds(30),
         environment: {
           BUCKET_NAME: contentBucket.bucketName,
+          DOCUMENTS_TABLE: documentsTable.tableName,
+          BUS_EVENT,
+          BUS_EVENT_SOURCE,
+          BUS_EVENT_DETAIL_TYPE,
         },
       }
     );
+    addDocumentAPIFunction.addLayers(helperLayer);
+
     addDocumentAPIFunction.addToRolePolicy(
       new iam.PolicyStatement({
         actions: ["s3:PutObject", "s3:PutObjectAcl"],
         resources: [contentBucket.bucketArn, `${contentBucket.bucketArn}/*`],
       })
     );
+    addDocumentAPIFunction.addToRolePolicy(
+      new iam.PolicyStatement({
+        actions: ["events:PutEvents"],
+        resources: [bus.eventBusArn],
+      })
+    );
+    documentsTable.grantReadWriteData(addDocumentAPIFunction);
 
     // Lambda function to make inference.
     const getDocumentAPIFunction = new lambda.DockerImageFunction(

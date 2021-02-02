@@ -3,7 +3,6 @@ import os
 import time
 
 import boto3
-
 import datastore
 from helper import AwsHelper
 from og import OutputGenerator
@@ -64,9 +63,6 @@ def processRequest(request):
     pages = getJobResults(jobAPI, jobId)
 
     print("Result pages received: {}".format(len(pages)))
-
-    dynamodb = AwsHelper().getResource("dynamodb")
-    ddb = dynamodb.Table(outputTable)
 
     detectForms = False
     detectTables = False
