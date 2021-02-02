@@ -601,7 +601,7 @@ export class DocumentPipelineStack extends cdk.Stack {
       }
     );
 
-    const target = new autoscaling.ScalableTarget(
+    /*const target = new autoscaling.ScalableTarget(
       this,
       "GetDocumentScalableTarget-" + ENV,
       {
@@ -617,7 +617,7 @@ export class DocumentPipelineStack extends cdk.Stack {
       targetValue: 0.9,
       predefinedMetric:
         autoscaling.PredefinedMetric.LAMBDA_PROVISIONED_CONCURRENCY_UTILIZATION,
-    });
+    });*/
 
     //permissions
     getDocumentAPIFunction.role?.addManagedPolicy(
