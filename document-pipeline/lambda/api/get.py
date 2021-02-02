@@ -65,7 +65,7 @@ def handler(event, context):
     if n > 0:
         log.info(f'-- Searching for k: {n} neighbors')
         labels, distances = doc_index.knn_query(value, k=n)
-        result = [{str(k): np.float64(v)}
+        result = [{str(k): 1 - np.float64(v)}
                   for k, v in zip(labels[0], distances[0])]
 
     log.info('result:')
