@@ -37,13 +37,13 @@ def handler(event, context):
     text = ""
     try:
         text = json.loads(event['body'])['text']
-        n = int(event['queryStringParameters']['n']
-                ) if 'n' in event['queryStringParameters'] else None
+        n = abs(int(event['queryStringParameters']['n']
+                    )) if 'n' in event['queryStringParameters'] else None
     except:
         log.info('Bad request params.')
         return {
             'statusCode': 400,
-            'body': "Bad request"
+            'body': "{\"result\": \"Bad request\"}"
         }
 
     # Process input image
