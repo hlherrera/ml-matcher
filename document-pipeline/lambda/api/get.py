@@ -33,8 +33,18 @@ def handler(event, context):
     log = add_handler(log)
     log.info(event)
 
-    text = json.loads(event['body'])['text']
-    n = int(event['queryStringParameters']['n'])
+    n = DEFAULT_QUANTITY_RESULTS
+    text = ""
+    try:
+        text = json.loads(event['body'])['text']
+        n = int(event['queryStringParameters']['n']
+                ) if 'n' in event['queryStringParameters'] else None
+    except:
+        log.info('Bad request params.')
+        return {
+            'statusCode': 400,
+            'body': "Bad request"
+        }
 
     # Process input image
     log.info(f"INFO -- Processing Text")
@@ -49,7 +59,7 @@ def handler(event, context):
 
     log.info(
         "-- Index: Current number of items: "+str(doc_index.element_count))
-    n = min(doc_index.element_count, max(n, DEFAULT_QUANTITY_RESULTS))
+    n = min(doc_index.element_count, n or DEFAULT_QUANTITY_RESULTS)
 
     result = {}
     if n > 0:
