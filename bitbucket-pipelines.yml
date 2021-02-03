@@ -6,9 +6,8 @@
 
 # Prerequisites: $AWS_ACCESS_KEY_ID, $AWS_SECRET_ACCESS_KEY, $AWS_DEFAULT_REGION setup in the Repository variables and Deployment variables.
 # For advanced cases, please, follow examples from the pipe's README https://bitbucket.org/atlassian/aws-cloudformation-deploy/src/master/README.md
-# You can find AWS Cloudformation template example for creating AWS S3 Bucket in the template.yaml file. 
+# You can find AWS Cloudformation template example for creating AWS S3 Bucket in the template.yaml file.
 # You can modify and use it to deploy any of your configuration as code. https://aws.amazon.com/cloudformation/resources/templates/
-
 
 image: atlassian/default-image:2
 
@@ -17,15 +16,12 @@ image: atlassian/default-image:2
 pipelines:
   branches:
     master:
-      - parallel:
-        - step:
-            name: Security Scan
-            script:
-              # Run a security scan for sensitive data.
-              # See more security tools at https://bitbucket.org/product/features/pipelines/integrations?&category=security
-              - pipe: atlassian/git-secrets-scan:0.4.3
       - step:
-          image: amazon/aws-cli:2.0.48
+          name: Security Scan
+          script:
+            - pipe: atlassian/git-secrets-scan:0.4.3
+      - step:
+          image: amazon/aws-cli
           name: Deploy to Production
           deployment: Production
           trigger: manual
@@ -33,3 +29,8 @@ pipelines:
             # Deploy your configuration as code using AWS CloudFormation.
             # See more details https://bitbucket.org/atlassian/aws-cloudformation-deploy
             - aws --version
+            - cd document-pipeline
+            - npm install -g aws-cdk
+            - npm ci
+            - npm run build
+            - cdk deploy --require-approval never
