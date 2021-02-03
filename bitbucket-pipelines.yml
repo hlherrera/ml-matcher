@@ -12,7 +12,6 @@ pipelines:
       - step:
           name: Deploy to Production
           deployment: Production
-          trigger: manual
           script:
             - npm install -g aws-cdk
             - cd document-pipeline
