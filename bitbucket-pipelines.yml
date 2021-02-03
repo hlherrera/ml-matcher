@@ -1,24 +1,19 @@
 # Prerequisites: $AWS_ACCESS_KEY_ID, $AWS_SECRET_ACCESS_KEY, $AWS_DEFAULT_REGION setup in the Repository variables and Deployment variables.
-image: atlassian/default-image:2
+image:
+  name: 657799620713.dkr.ecr.us-east-1.amazonaws.com/node-alpine:latest
+  aws:
+    access-key: $AWS_ACCESS_KEY_ID
+    secret-key: $AWS_SECRET_ACCESS_KEY
 
 # Workflow Configuration
 pipelines:
   branches:
     master:
       - step:
-          name: Security Scan
-          script:
-            - pipe: atlassian/git-secrets-scan:0.4.3
-      - step:
-          image: node:alpine
           name: Deploy to Production
           deployment: Production
           trigger: manual
           script:
-            - apk add docker
-            - apk add openrc --no-cache
-            - rc-update add docker boot
-            - service docker start
             - npm install -g aws-cdk
             - cd document-pipeline
             - npm ci
