@@ -14,7 +14,13 @@ pipelines:
           name: Deploy to Production
           deployment: Production
           trigger: manual
+          services:
+            - docker
           script:
+            - apk add docker
+            - apk add openrc --no-cache
+            - rc-update add docker boot
+            - service docker start
             - npm install -g aws-cdk
             - cd document-pipeline
             - npm ci
