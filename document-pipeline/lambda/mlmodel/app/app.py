@@ -44,18 +44,13 @@ def save_in_index(data, label, log):
 
     doc_index.set_ef(200)
 
-    list_elements = doc_index.get_ids_list()
-
     log.info(
         f"Index construction: M={doc_index.M}, ef_construction={doc_index.ef_construction}")
     log.info(f"-- Index: Maximun Total of items: {n_elements}")
     log.info(
-        "-- Index: Current number of items:"+str(len(list_elements)))
+        f"-- Index: Current number of items: {doc_index.element_count}")
     log.info(
         f"Search speed/quality trade-off parameter: ef={doc_index.ef}")
-
-    log.info('Elements indexed:')
-    log.info(list_elements)
 
     log.info("-- Add to Index an item: " + str(label))
     doc_index.add_items(data, int(label))
