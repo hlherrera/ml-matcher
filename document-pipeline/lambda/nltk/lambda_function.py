@@ -61,7 +61,7 @@ def processRequest(request):
     documentsTable = request["documentsTable"]
     documentId = request["documentId"]
 
-    word_list = set(tokenize(text, 'spanish')).union(tokenize(text, 'english'))
+    word_list = tokenize(text, 'spanish') + tokenize(text, 'english')
     dist = FreqDist(word_list)
     keywords, _ = zip(*dist.most_common(NUMBER_OF_WORDS))
 
