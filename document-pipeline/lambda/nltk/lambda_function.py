@@ -2,17 +2,19 @@ import os
 import re
 from string import punctuation
 
-import nltk
 from botocore.exceptions import ClientError
+from helper import AwsHelper
+
+import nltk
+from nltk import FreqDist
 from nltk.corpus import stopwords
 from nltk.tokenize import word_tokenize
-
-from helper import AwsHelper
 
 nltk.data.path.append("/tmp")
 nltk.download("punkt", download_dir="/tmp")
 nltk.download('stopwords', download_dir="/tmp")
 
+NUMBER_OF_WORDS = 15
 # punctuation to remove
 non_words = list(punctuation)
 # add spanish punctuation
@@ -21,10 +23,13 @@ non_words.extend(['¿', '¡'])
 
 def tokenize(text, language):
     lower_text = text.lower()
+    lower_text = re.sub(r"\s[\d]+\s", " ", lower_text)
     lower_text = re.sub(r"http\S+", "https", lower_text)
     lower_text = ''.join([c for c in lower_text if c not in non_words])
     tokens = word_tokenize(lower_text, language)
-    return list(filter(lambda x: x not in stopwords.words('spanish'), tokens))
+    stopwords_set = set(stopwords.words('spanish')).union(
+        stopwords.words('english'))
+    return list(filter(lambda x: x not in stopwords_set, tokens))
 
 
 def updateDocumentKeywords(documentsTable, documentId, keywords):
@@ -56,9 +61,11 @@ def processRequest(request):
     documentsTable = request["documentsTable"]
     documentId = request["documentId"]
 
-    keywords = tokenize(text, 'spanish')
+    word_list = set(tokenize(text, 'spanish')).union(tokenize(text, 'english'))
+    dist = FreqDist(word_list)
+    keywords, _ = zip(*dist.most_common(NUMBER_OF_WORDS))
 
-    updateDocumentKeywords(documentsTable, documentId, keywords)
+    updateDocumentKeywords(documentsTable, documentId, list(keywords))
 
     return {
         'statusCode': 200,
