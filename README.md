@@ -1,6 +1,6 @@
 # Large scale Document Processing and CV Matcher
 
-This rproject shows how you can extract text from documents and create a CV Matcher at scale.
+This project shows how you can extract text from documents and create a CV Matcher at scale.
 Below are some of key attributes of reference architecture:
 
 - An HTTP endpoint to add documents to Amazon S3 bucket.
@@ -71,29 +71,25 @@ Similar architecture can be used for other services like Amazon Rekognition to p
 
 ## Test incoming documents
 
-- Go to the Amazon S3 bucket "textractpipelinestack-documentsbucketxxxx" created by the stack and upload few sample documents (jpg/jpeg, png, pdf).
+- Go to the Amazon S3 bucket "documentpipelinestack-documentsbucketxxxx" created by the stack and upload few sample documents (jpg/jpeg, png, pdf).
 - You will see output files generated for each document with a folder name "{filename}-analysis" (refresh Amazon S3 bucket to see these results).
 
 ## Test existing backfill documents
 
-- Go to the Amazon S3 bucket "textractpipelinestack-existingdocumentsbucketxxxx" create by the stack and upload few sample documents (jpg/jpeg, png, pdf).
-- Go to the Amazon S3 bucket "textractpipelinestack-inventoryandlogsxxxxx" and upload a csv file containing the list of document names you just uploaded to the bucket "textractpipelinestack-existingdocumentsbucketxxxx". CSV file should have two columns bucketName,objectName. See [example](./inventory-test.csv).
+- Go to the Amazon S3 bucket "documentpipelinestack-existingdocumentsbucketxxxx" create by the stack and upload few sample documents (jpg/jpeg, png, pdf).
+- Go to the Amazon S3 bucket "documentpipelinestack-inventoryandlogsxxxxx" and upload a csv file containing the list of document names you just uploaded to the bucket "documentpipelinestack-existingdocumentsbucketxxxx". CSV file should have two columns bucketName,objectName. See [example](./inventory-test.csv).
 - You can instead use [Amazon S3 Inventory](https://docs.aws.amazon.com/AmazonS3/latest/dev/storage-inventory.html) to automatically generate a list of documents in your Amazon S3 bucket.
 - Go to S3 in AWS Console and click on Batch Operations.
 - Click on Create job, select CSV or S3 inventory report and click Next.
 - Under Choose operation: select Invoke AWS Lambda function.
-- Under Invoke AWS Lambda function: select "textractpipelinestack-S3BatchProcessorxxxx" and click Next.
-- Under path to completion report destination: browse and select Amazon S3 bucket "textractpipelinestack-inventoryandlogsxxxxx".
-- Under Permissions: for IAM role, select "textractpipelinestack-S3BatchOperationRolexxxx" and click Next.
+- Under Invoke AWS Lambda function: select "documentpipelinestack-S3BatchProcessorxxxx" and click Next.
+- Under path to completion report destination: browse and select Amazon S3 bucket "documentpipelinestack-inventoryandlogsxxxxx".
+- Under Permissions: for IAM role, select "documentpipelinestack-S3BatchOperationRolexxxx" and click Next.
 - Review and click Create job.
 - From Amazon S3 Batch operations page, click on the Job ID link for the job you just created.
 - Click "Confirm and run" and then "Run job".
 - From S3 Batch operations page, click refresh to see the job status.
-- Go to Amazon S3 bucket "textractpipeline-existingdocumentsbucketxxxx" and you should see output generated for documents in your list.
-
-## Source code
-
-- [textract-pipeline-stack.ts](./textract-pipeline/lib/textract-pipeline-stack.ts) CDK code to define infrastructure including IAM roles, Lambda functions, SQS queues etc.
+- Go to Amazon S3 bucket "documentpipelinestack-existingdocumentsbucketxxxx" and you should see output generated for documents in your list.
 
 ## Delete stack
 
