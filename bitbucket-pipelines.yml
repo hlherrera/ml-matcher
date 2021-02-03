@@ -14,8 +14,6 @@ pipelines:
           name: Deploy to Production
           deployment: Production
           trigger: manual
-          services:
-            - docker
           script:
             - apk add docker
             - apk add openrc --no-cache
