@@ -21,17 +21,11 @@ pipelines:
           script:
             - pipe: atlassian/git-secrets-scan:0.4.3
       - step:
-          image: amazon/aws-cli
+          image: node:alpine
           name: Deploy to Production
           deployment: Production
           trigger: manual
           script:
-            # Deploy your configuration as code using AWS CloudFormation.
-            # See more details https://bitbucket.org/atlassian/aws-cloudformation-deploy
-            - aws --version
-            - curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.34.0/install.sh | bash
-            - . ~/.nvm/nvm.sh
-            - nvm install node
             - npm install -g aws-cdk
             - cd document-pipeline
             - npm ci
