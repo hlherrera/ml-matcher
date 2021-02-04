@@ -23,7 +23,7 @@ non_words.extend(['¿', '¡'])
 
 def tokenize(text, language):
     lower_text = text.lower()
-    lower_text = re.sub(r"\s[\d]+\s", " ", lower_text)
+    lower_text = re.sub(r"\s[\d\W]+\s", " ", lower_text)
     lower_text = re.sub(r"http\S+", "https", lower_text)
     lower_text = ''.join([c for c in lower_text if c not in non_words])
     tokens = word_tokenize(lower_text, language)
