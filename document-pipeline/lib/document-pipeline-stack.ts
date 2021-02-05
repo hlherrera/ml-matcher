@@ -23,7 +23,7 @@ import autoscaling = require("@aws-cdk/aws-applicationautoscaling");
 
 import path = require("path");
 
-const THROUGHPUT_MB = 6;
+const THROUGHPUT_MB = 5;
 const ENV = process.env.ENV || "Dev";
 const BUS_EVENT = "TextractEventBus" + ENV;
 const BUS_EVENT_SOURCE = "textract.pipeline";
