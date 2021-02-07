@@ -55,10 +55,19 @@ def processRequest(request):
     jobId = request['jobId']
     jobTag = request['jobTag']
     jobAPI = request['jobAPI']
+    jobStatus = request["jobStatus"]
     bucketName = request['bucketName']
     objectName = request['objectName']
     outputTable = request["outputTable"]
     documentsTable = request["documentsTable"]
+
+    if jobStatus == 'FAILED':
+        ds = datastore.DocumentStore(documentsTable, None)
+        ds.updateDocumentStatus(jobTag, jobStatus)
+        return {
+            'statusCode': 200,
+            'body': output
+        }
 
     pages = getJobResults(jobAPI, jobId)
 

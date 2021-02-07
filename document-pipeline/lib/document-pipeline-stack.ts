@@ -30,6 +30,7 @@ const BUS_EVENT_SOURCE = "textract.pipeline";
 const BUS_EVENT_DETAIL_TYPE = "Document Text Extracted";
 const MODEL_PATH = "/mnt/model";
 const MODEL_NAME = "distilbert-multilingual-nli-stsb-quora-ranking";
+const TABLE_GSI_NAME = "document_table_idx";
 
 const getNLTKLayer = (version = 27) => {
   return `arn:aws:lambda:${process.env.AWS_REGION}:770693421928:layer:Klayers-python38-nltk:${version}`;
@@ -133,8 +134,11 @@ export class DocumentPipelineStack extends cdk.Stack {
     });
 
     documentsTable.addGlobalSecondaryIndex({
-      indexName: "document_table_name",
-      partitionKey: { name: "objectName", type: dynamodb.AttributeType.STRING },
+      indexName: TABLE_GSI_NAME,
+      partitionKey: {
+        name: "documentCreatedOn",
+        type: dynamodb.AttributeType.NUMBER,
+      },
     });
 
     //**********SQS Queues*****************************
@@ -202,6 +206,7 @@ export class DocumentPipelineStack extends cdk.Stack {
       code: lambda.Code.fromAsset("lambda/s3processor"),
       handler: "lambda_function.lambda_handler",
       timeout: cdk.Duration.seconds(30),
+      memorySize: 1024,
       environment: {
         SYNC_QUEUE_URL: syncJobsQueue.queueUrl,
         ASYNC_QUEUE_URL: asyncJobsQueue.queueUrl,
@@ -252,6 +257,7 @@ export class DocumentPipelineStack extends cdk.Stack {
         code: lambda.Code.fromAsset("lambda/s3batchprocessor"),
         handler: "lambda_function.lambda_handler",
         timeout: cdk.Duration.seconds(30),
+        memorySize: 1024,
         environment: {
           DOCUMENTS_TABLE: documentsTable.tableName,
           OUTPUT_TABLE: outputTable.tableName,
@@ -278,6 +284,7 @@ export class DocumentPipelineStack extends cdk.Stack {
       code: lambda.Code.fromAsset("lambda/documentprocessor"),
       handler: "lambda_function.lambda_handler",
       timeout: cdk.Duration.seconds(900),
+      memorySize: 1024,
       environment: {
         SYNC_QUEUE_URL: syncJobsQueue.queueUrl,
         ASYNC_QUEUE_URL: asyncJobsQueue.queueUrl,
@@ -306,6 +313,7 @@ export class DocumentPipelineStack extends cdk.Stack {
       handler: "lambda_function.lambda_handler",
       reservedConcurrentExecutions: 1,
       timeout: cdk.Duration.seconds(30),
+      memorySize: 1024,
       environment: {
         OUTPUT_TABLE: outputTable.tableName,
         DOCUMENTS_TABLE: documentsTable.tableName,
@@ -341,6 +349,7 @@ export class DocumentPipelineStack extends cdk.Stack {
       code: lambda.Code.fromAsset("lambda/asyncprocessor"),
       handler: "lambda_function.lambda_handler",
       reservedConcurrentExecutions: 1,
+      memorySize: 1024,
       timeout: cdk.Duration.seconds(60),
       environment: {
         ASYNC_QUEUE_URL: asyncJobsQueue.queueUrl,
@@ -439,6 +448,7 @@ export class DocumentPipelineStack extends cdk.Stack {
         runtime: lambda.Runtime.PYTHON_3_8,
         code: lambda.Code.fromAsset("lambda/nltk"),
         handler: "lambda_function.lambda_handler",
+        memorySize: 3008,
         timeout: cdk.Duration.seconds(900),
         environment: {
           DOCUMENTS_TABLE: documentsTable.tableName,
@@ -559,6 +569,7 @@ export class DocumentPipelineStack extends cdk.Stack {
         runtime: lambda.Runtime.PYTHON_3_8,
         code: lambda.Code.fromAsset("lambda/api"),
         handler: "add.handler",
+        memorySize: 1024,
         timeout: cdk.Duration.seconds(30),
         environment: {
           BUCKET_NAME: contentBucket.bucketName,
@@ -585,16 +596,35 @@ export class DocumentPipelineStack extends cdk.Stack {
     );
     documentsTable.grantReadWriteData(addDocumentAPIFunction);
 
-    // Lambda function to make inference.
-    const getDocumentAPIFunction = new lambda.DockerImageFunction(
+    // Lambda function to get document.
+    const getDocumentAPIFunction = new lambda.Function(
       this,
-      "getDocumentInferenceAPIFn" + ENV,
+      "getDocumentAPIFn" + ENV,
+      {
+        runtime: lambda.Runtime.PYTHON_3_8,
+        code: lambda.Code.fromAsset("lambda/api"),
+        handler: "get.handler",
+        memorySize: 1024,
+        timeout: cdk.Duration.seconds(30),
+        environment: {
+          DOCUMENTS_TABLE: documentsTable.tableName,
+          TABLE_GSI_NAME,
+        },
+      }
+    );
+    getDocumentAPIFunction.addLayers(helperLayer);
+    documentsTable.grantReadWriteData(getDocumentAPIFunction);
+
+    // Lambda function to make inference.
+    const searchDocumentAPIFunction = new lambda.DockerImageFunction(
+      this,
+      "searchDocumentInferenceAPIFn" + ENV,
       {
         code: lambda.DockerImageCode.fromImageAsset(
           path.join(__dirname, "..", "lambda"),
           {
             entrypoint: ["/lambda-entrypoint.sh"],
-            cmd: ["get.handler"],
+            cmd: ["search.handler"],
           }
         ),
         timeout: cdk.Duration.seconds(60),
@@ -635,12 +665,12 @@ export class DocumentPipelineStack extends cdk.Stack {
     });*/
 
     //permissions
-    getDocumentAPIFunction.role?.addManagedPolicy(
+    searchDocumentAPIFunction.role?.addManagedPolicy(
       iam.ManagedPolicy.fromAwsManagedPolicyName(
         "AmazonElasticFileSystemClientFullAccess"
       )
     );
-    getDocumentAPIFunction.addToRolePolicy(
+    searchDocumentAPIFunction.addToRolePolicy(
       new iam.PolicyStatement({
         actions: ["dynamodb:GetItem"],
         resources: [documentsTable.tableArn],
@@ -668,7 +698,11 @@ export class DocumentPipelineStack extends cdk.Stack {
 
     apiDocs.addMethod(
       "POST",
-      new apiGW.LambdaIntegration(getDocumentAPIFunction)
+      new apiGW.LambdaIntegration(searchDocumentAPIFunction)
     );
+
+    apiDocs
+      .addResource("{doc_id}")
+      .addMethod("GET", new apiGW.LambdaIntegration(getDocumentAPIFunction));
   }
 }

@@ -1,6 +1,6 @@
 import datetime
 
-import boto3
+from boto3.dynamodb.conditions import Key
 from botocore.exceptions import ClientError
 
 from helper import AwsHelper
@@ -111,6 +111,29 @@ class DocumentStore:
                             'documentStatus': ddbGetItemResponse['Item']['documentStatus']['S'],
                             'documentCreatedOn': ddbGetItemResponse['Item']['documentCreatedOn']['N']
                             }
+
+        return itemToReturn
+
+    def queryDocument(self, indexName, createdOn):
+
+        dynamodb = AwsHelper().getResource("dynamodb")
+
+        ddbGetItemResponse = dynamodb.Table(self._documentsTableName).query(
+            # Add the name of the index you want to use in your query.
+            IndexName=indexName,
+            KeyConditionExpression=Key('documentCreatedOn').eq(int(createdOn)),
+        )
+
+        itemToReturn = None
+
+        if(len(ddbGetItemResponse['Items']) > 0):
+            doc = ddbGetItemResponse['Items'][0]
+            itemToReturn = {
+                'bucketName': doc['bucketName'],
+                'objectName': doc['objectName'],
+                'documentStatus': doc['documentStatus'],
+                'keywords': doc.get('keywords',[])
+            }
 
         return itemToReturn
 
