@@ -13,7 +13,8 @@ from utils import add_handler, init_logger
 documentTable = os.environ.get('DOCUMENTS_TABLE')
 
 efs_path = os.environ.get('MODEL_PATH')
-model_index_path = os.path.join(efs_path, 'ml-index.bin')
+model_index_name = os.environ.get('MODEL_INDEX_NAME', 'ml-index.bin')
+model_index_path = os.path.join(efs_path, model_index_name)
 
 dim = int(os.environ.get('MODEL_DIM'))
 model = SentenceTransformer(os.environ.get('MODEL_NAME'))
@@ -30,7 +31,7 @@ db = datastore.DocumentStore(documentTable, '')
 def save_in_index(data, label, log):
 
     try:
-        log.info('-- Reading Index')
+        log.info(f'-- Reading Index: {model_index_path}')
         doc_index.load_index(model_index_path, max_elements=n_elements)
 
         log.info(f"-- Index loaded with # threads: {doc_index.num_threads}")
@@ -76,7 +77,6 @@ def handler(event, context):
     value = model.encode(text)
 
     log.info(f"INFO -- Saving indexes")
-    document['documentCreatedOn'] = int(document['documentCreatedOn'])
     save_in_index(value, document['documentCreatedOn'], log)
 
     log.info(f"Returning data")

@@ -67,7 +67,7 @@ Similar architecture can be used for other services like Amazon Rekognition to p
 
 - Run "npm run build" to build infrastructure
 - Run "cdk bootstrap"
-- Run "cdk deploy" to deploy stack
+- Run "npm run cdk-dev" to deploy dev stack
 
 ## Test incoming documents
 

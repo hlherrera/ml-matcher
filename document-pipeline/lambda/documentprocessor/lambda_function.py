@@ -38,7 +38,7 @@ def processRequest(request):
         qUrl = request['asyncQueueUrl']
 
     if(qUrl):
-        #features = ["Text", "Forms", "Tables"]
+        # features = ["Text", "Forms", "Tables"]
         features = ["Text"]
 
         jsonMessage = {'documentId': documentId,
@@ -66,10 +66,10 @@ def processRecord(record, syncQueueUrl, asyncQueueUrl):
 
     if("documentId" in newImage and "S" in newImage["documentId"]):
         documentId = newImage["documentId"]["S"]
-    if("bucketName" in newImage and "S" in newImage["bucketName"]):
-        bucketName = newImage["bucketName"]["S"]
-    if("objectName" in newImage and "S" in newImage["objectName"]):
-        objectName = newImage["objectName"]["S"]
+    if("bucketName" in newImage and "L" in newImage["bucketName"] and len(newImage["bucketName"]["L"]) > 0):
+        bucketName = newImage["bucketName"]["L"][0]["S"]
+    if("objectName" in newImage and "L" in newImage["objectName"] and len(newImage["objectName"]["L"]) > 0):
+        objectName = newImage["objectName"]["L"][0]["S"]
     if("documentStatus" in newImage and "S" in newImage["documentStatus"]):
         documentStatus = newImage["documentStatus"]["S"]
 
@@ -106,7 +106,7 @@ def lambda_handler(event, context):
                             processRecord(record, syncQueueUrl, asyncQueueUrl)
 
                 except Exception as e:
-                    print("Faild to process record. Exception: {}".format(e))
+                    print("Failed to process record. Exception: {}".format(e))
 
     except Exception as e:
         print("Failed to process records. Exception: {}".format(e))

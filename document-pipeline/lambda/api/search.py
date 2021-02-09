@@ -12,7 +12,8 @@ from utils import add_handler, init_logger
 documentTable = os.environ.get('DOCUMENTS_TABLE')
 
 efs_path = os.environ.get('MODEL_PATH')
-model_index_path = os.path.join(efs_path, 'ml-index.bin')
+model_index_name = os.environ.get('MODEL_INDEX_NAME', 'ml-index.bin')
+model_index_path = os.path.join(efs_path, model_index_name)
 
 dim = int(os.environ.get('MODEL_DIM'))
 model = SentenceTransformer(os.environ.get('MODEL_NAME'))
@@ -50,7 +51,7 @@ def handler(event, context):
     log.info(f"INFO -- Processing Text")
     value = model.encode(text)
 
-    log.info('-- Reading Index')
+    log.info(f'-- Reading Index: {model_index_path}')
     doc_index.load_index(model_index_path, max_elements=n_elements)
     log.info(
         f"\nParameters passed to constructor:  space={doc_index.space}, dim={doc_index.dim}")

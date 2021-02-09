@@ -12,9 +12,13 @@ class DocumentStore:
         self._documentsTableName = documentsTableName
         self._outputTableName = outputTableName
 
-    def createDocument(self, documentId, bucketName, objectName, createdOn=round(datetime.datetime.utcnow().timestamp())):
-
+    def createDocument(self, documentId, bucketName, objectName, createdOn):
         err = None
+
+        if not isinstance(bucketName, list):
+            bucketName = [bucketName]
+        if not isinstance(objectName, list):
+            objectName = [objectName]
 
         dynamodb = AwsHelper().getResource("dynamodb")
         table = dynamodb.Table(self._documentsTableName)
@@ -42,9 +46,7 @@ class DocumentStore:
         return err
 
     def updateDocumentStatus(self, documentId, documentStatus):
-
         err = None
-
         dynamodb = AwsHelper().getResource("dynamodb")
         table = dynamodb.Table(self._documentsTableName)
 
@@ -57,6 +59,33 @@ class DocumentStore:
                     ':documentstatusValue': documentStatus
                 }
             )
+        except ClientError as e:
+            if e.response['Error']['Code'] == "ConditionalCheckFailedException":
+                print(e.response['Error']['Message'])
+                err = {'Error': 'Document does not exist.'}
+            else:
+                raise
+
+        return err
+
+    def putDocumentVersion(self, existingId, documentId, bucketName, objectName):
+        err = None
+        dynamodb = AwsHelper().getResource("dynamodb")
+        table = dynamodb.Table(self._documentsTableName)
+
+        try:
+            doc = table.get_item(
+                Key={'documentId': existingId}
+            )
+            objectNameList = [objectName] + doc['Item']['objectName']
+            createdOn = doc['Item']['documentCreatedOn']
+
+            print(f'Deleting old document: {existingId}')
+            self.deleteDocument(existingId)
+            print(f'Create new version of Document: {documentId}')
+            self.createDocument(documentId, bucketName,
+                                objectNameList, createdOn)
+
         except ClientError as e:
             if e.response['Error']['Code'] == "ConditionalCheckFailedException":
                 print(e.response['Error']['Message'])
@@ -106,10 +135,10 @@ class DocumentStore:
 
         if('Item' in ddbGetItemResponse):
             itemToReturn = {'documentId': ddbGetItemResponse['Item']['documentId']['S'],
-                            'bucketName': ddbGetItemResponse['Item']['bucketName']['S'],
-                            'objectName': ddbGetItemResponse['Item']['objectName']['S'],
+                            'bucketName': ddbGetItemResponse['Item']['bucketName']["L"][0]['S'],
+                            'objectName': ddbGetItemResponse['Item']['objectName']["L"][0]['S'],
                             'documentStatus': ddbGetItemResponse['Item']['documentStatus']['S'],
-                            'documentCreatedOn': ddbGetItemResponse['Item']['documentCreatedOn']['N']
+                            'documentCreatedOn': ddbGetItemResponse['Item']['documentCreatedOn']['S']
                             }
 
         return itemToReturn
@@ -121,7 +150,7 @@ class DocumentStore:
         ddbGetItemResponse = dynamodb.Table(self._documentsTableName).query(
             # Add the name of the index you want to use in your query.
             IndexName=indexName,
-            KeyConditionExpression=Key('documentCreatedOn').eq(int(createdOn)),
+            KeyConditionExpression=Key('documentCreatedOn').eq(str(createdOn)),
         )
 
         itemToReturn = None
@@ -129,10 +158,11 @@ class DocumentStore:
         if(len(ddbGetItemResponse['Items']) > 0):
             doc = ddbGetItemResponse['Items'][0]
             itemToReturn = {
-                'bucketName': doc['bucketName'],
-                'objectName': doc['objectName'],
+                'documentId': doc['documentId'],
+                'bucketName': doc['bucketName'][0],
+                'objectName': doc['objectName'][0],
                 'documentStatus': doc['documentStatus'],
-                'keywords': doc.get('keywords',[])
+                'keywords': doc.get('keywords', [])
             }
 
         return itemToReturn

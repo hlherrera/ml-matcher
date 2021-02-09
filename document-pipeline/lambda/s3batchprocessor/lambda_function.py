@@ -19,6 +19,7 @@ def processRequest(request):
     objectName = request["objectName"]
     documentsTable = request["documentsTable"]
     outputTable = request["outputTable"]
+    documentIndex = request['documentIndexTable']
 
     invocationId = request['invocationId']
     invocationSchemaVersion = request['invocationSchemaVersion']
@@ -32,8 +33,16 @@ def processRequest(request):
     if(ext and ext in ["jpg", "jpeg", "png", "pdf"]):
         documentId = str(uuid.uuid1())
         ds = datastore.DocumentStore(documentsTable, outputTable)
-        (createdOn,) = re.match("f-(\d{13})", objectName).groups()
-        ds.createDocument(documentId, bucketName, objectName, int(createdOn))
+        (createdOn,) = re.match("f-(\d{20})", objectName).groups()
+
+        doc = ds.queryDocument(documentIndex, createdOn)
+
+        if doc is None:
+            ds.createDocument(documentId, bucketName, objectName, createdOn)
+        else:
+            existingId = doc.get('documentId')
+            ds.putDocumentVersion(existingId, documentId,
+                                  bucketName, objectName)
 
         output = "Saved document {} for {}/{}".format(
             documentId, bucketName, objectName)
@@ -76,5 +85,6 @@ def lambda_handler(event, context):
 
     request["documentsTable"] = os.environ['DOCUMENTS_TABLE']
     request["outputTable"] = os.environ['OUTPUT_TABLE']
+    request["documentIndexTable"] = os.environ.get('TABLE_GSI_NAME')
 
     return processRequest(request)

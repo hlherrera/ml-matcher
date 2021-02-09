@@ -16,19 +16,17 @@ import lambda = require("@aws-cdk/aws-lambda");
 import s3 = require("@aws-cdk/aws-s3");
 import efs = require("@aws-cdk/aws-efs");
 import ec2 = require("@aws-cdk/aws-ec2");
-import ecr = require("@aws-cdk/aws-ecr");
 import apiGW = require("@aws-cdk/aws-apigateway");
-import apiPI = require("@aws-cdk/aws-apigatewayv2-integrations");
-import autoscaling = require("@aws-cdk/aws-applicationautoscaling");
 
 import path = require("path");
 
-const THROUGHPUT_MB = 5;
+const THROUGHPUT_MB = 4;
 const ENV = process.env.ENV || "Dev";
 const BUS_EVENT = "TextractEventBus" + ENV;
 const BUS_EVENT_SOURCE = "textract.pipeline";
 const BUS_EVENT_DETAIL_TYPE = "Document Text Extracted";
 const MODEL_PATH = "/mnt/model";
+const MODEL_INDEX_NAME = `ml-index-${ENV}.bin`;
 const MODEL_NAME = "distilbert-multilingual-nli-stsb-quora-ranking";
 const TABLE_GSI_NAME = "document_table_idx";
 
@@ -137,7 +135,7 @@ export class DocumentPipelineStack extends cdk.Stack {
       indexName: TABLE_GSI_NAME,
       partitionKey: {
         name: "documentCreatedOn",
-        type: dynamodb.AttributeType.NUMBER,
+        type: dynamodb.AttributeType.STRING,
       },
     });
 
@@ -212,6 +210,7 @@ export class DocumentPipelineStack extends cdk.Stack {
         ASYNC_QUEUE_URL: asyncJobsQueue.queueUrl,
         DOCUMENTS_TABLE: documentsTable.tableName,
         OUTPUT_TABLE: outputTable.tableName,
+        TABLE_GSI_NAME,
       },
     });
     //Layer
@@ -261,6 +260,7 @@ export class DocumentPipelineStack extends cdk.Stack {
         environment: {
           DOCUMENTS_TABLE: documentsTable.tableName,
           OUTPUT_TABLE: outputTable.tableName,
+          TABLE_GSI_NAME,
         },
         reservedConcurrentExecutions: 1,
       }
@@ -465,10 +465,20 @@ export class DocumentPipelineStack extends cdk.Stack {
     documentsTable.grantReadWriteData(processDocumentText);
 
     // VPC definition.
-    const vpc = new ec2.Vpc(this, "vpcDocument" + ENV, {
-      maxAzs: 2,
-      natGateways: 1,
-    });
+
+    let vpc;
+    if (ENV === "Dev") {
+      vpc = new ec2.Vpc(this, "vpcDocumentDev", {
+        maxAzs: 2,
+        natGateways: 1,
+      });
+    } else {
+      // reuse VPC for costs
+      vpc = ec2.Vpc.fromLookup(this, "vpcDocument" + ENV, {
+        isDefault: false,
+        vpcId: "vpc-04876d607aec74c20", //@todo
+      });
+    }
 
     // Security Group definitions.
 
@@ -528,6 +538,7 @@ export class DocumentPipelineStack extends cdk.Stack {
         environment: {
           DOCUMENTS_TABLE: documentsTable.tableName,
           MODEL_PATH,
+          MODEL_INDEX_NAME,
           SENTENCE_TRANSFORMERS_HOME: MODEL_PATH,
           MODEL_NAME,
         },
@@ -574,6 +585,7 @@ export class DocumentPipelineStack extends cdk.Stack {
         environment: {
           BUCKET_NAME: contentBucket.bucketName,
           DOCUMENTS_TABLE: documentsTable.tableName,
+          TABLE_GSI_NAME,
           BUS_EVENT,
           BUS_EVENT_SOURCE,
           BUS_EVENT_DETAIL_TYPE,
@@ -584,7 +596,12 @@ export class DocumentPipelineStack extends cdk.Stack {
 
     addDocumentAPIFunction.addToRolePolicy(
       new iam.PolicyStatement({
-        actions: ["s3:PutObject", "s3:PutObjectAcl"],
+        actions: [
+          "s3:PutObject",
+          "s3:PutObjectAcl",
+          "s3:GetObject",
+          "s3:GetObjectAcl",
+        ],
         resources: [contentBucket.bucketArn, `${contentBucket.bucketArn}/*`],
       })
     );
@@ -613,6 +630,12 @@ export class DocumentPipelineStack extends cdk.Stack {
       }
     );
     getDocumentAPIFunction.addLayers(helperLayer);
+    getDocumentAPIFunction.addToRolePolicy(
+      new iam.PolicyStatement({
+        actions: ["s3:GetObject", "s3:GetObjectAcl"],
+        resources: [contentBucket.bucketArn, `${contentBucket.bucketArn}/*`],
+      })
+    );
     documentsTable.grantReadWriteData(getDocumentAPIFunction);
 
     // Lambda function to make inference.
@@ -640,6 +663,7 @@ export class DocumentPipelineStack extends cdk.Stack {
         environment: {
           DOCUMENTS_TABLE: documentsTable.tableName,
           MODEL_PATH,
+          MODEL_INDEX_NAME,
           SENTENCE_TRANSFORMERS_HOME: MODEL_PATH,
           MODEL_NAME,
         },
@@ -677,23 +701,25 @@ export class DocumentPipelineStack extends cdk.Stack {
       })
     );
 
+    const corsResponse = {
+      methodResponses: [
+        {
+          statusCode: "200",
+          responseParameters: {
+            "method.response.header.Content-Type": true,
+            "method.response.header.Access-Control-Allow-Origin": true,
+            "method.response.header.Access-Control-Allow-Credentials": true,
+          },
+        },
+      ],
+    };
+
     apiDocs.addMethod(
       "PUT",
       new apiGW.LambdaIntegration(addDocumentAPIFunction, {
         contentHandling: apiGW.ContentHandling.CONVERT_TO_TEXT,
       }),
-      {
-        methodResponses: [
-          {
-            statusCode: "200",
-            responseParameters: {
-              "method.response.header.Content-Type": true,
-              "method.response.header.Access-Control-Allow-Origin": true,
-              "method.response.header.Access-Control-Allow-Credentials": true,
-            },
-          },
-        ],
-      }
+      corsResponse
     );
 
     apiDocs.addMethod(
@@ -701,8 +727,19 @@ export class DocumentPipelineStack extends cdk.Stack {
       new apiGW.LambdaIntegration(searchDocumentAPIFunction)
     );
 
-    apiDocs
-      .addResource("{doc_id}")
-      .addMethod("GET", new apiGW.LambdaIntegration(getDocumentAPIFunction));
+    const resource = apiDocs.addResource("{doc_id}");
+
+    resource.addMethod(
+      "PUT",
+      new apiGW.LambdaIntegration(addDocumentAPIFunction, {
+        contentHandling: apiGW.ContentHandling.CONVERT_TO_TEXT,
+      }),
+      corsResponse
+    );
+
+    resource.addMethod(
+      "GET",
+      new apiGW.LambdaIntegration(getDocumentAPIFunction)
+    );
   }
 }
