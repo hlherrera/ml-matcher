@@ -20,7 +20,7 @@ import apiGW = require("@aws-cdk/aws-apigateway");
 
 import path = require("path");
 
-const THROUGHPUT_MB = 4;
+const THROUGHPUT_MB = 3;
 const ENV = process.env.ENV || "Dev";
 const BUS_EVENT = "TextractEventBus" + ENV;
 const BUS_EVENT_SOURCE = "textract.pipeline";
