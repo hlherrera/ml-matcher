@@ -1,5 +1,6 @@
 import json
 import os
+import re
 import time
 
 import boto3
@@ -90,7 +91,9 @@ def processRequest(request):
                           objectName, detectForms, detectTables, ddb)
     text = opg.run()
 
-    text = " ".join([TECH_WORDS.get(w.lower()) or w for w in text.split(" ")])
+    text = " ".join([TECH_WORDS.get(w.lower()) or w for w in re.split(
+        "\s+", re.sub(r"[():.,?!¡¿]", "", text)
+    )])
 
     print("DocumentId: {}".format(jobTag))
 
