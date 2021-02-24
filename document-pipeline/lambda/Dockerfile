@@ -22,11 +22,16 @@ RUN python -m pip install \
 RUN rm -rf /var/cache/yum
 RUN mkdir -p /mnt/model
 
+# Spacy multi-language
+RUN python -m spacy download xx_ent_wiki_sm
+
 # Copy source code files
 COPY helper/python/* ${LAMBDA_TASK_ROOT}/
 COPY api/* ${LAMBDA_TASK_ROOT}/
 COPY mlmodel/app/* ${LAMBDA_TASK_ROOT}/
 
+ENV SPACY_MODEL=xx_ent_wiki_sm
+ENV NLTK_DATA=/mnt
 ENV MODEL_PATH=/mnt/model
 ENV MODEL_NAME=distilbert-multilingual-nli-stsb-quora-ranking
 ENV MODEL_DIM=768

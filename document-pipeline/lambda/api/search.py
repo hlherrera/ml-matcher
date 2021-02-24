@@ -15,14 +15,12 @@ efs_path = os.environ.get('MODEL_PATH')
 model_index_name = os.environ.get('MODEL_INDEX_NAME', 'ml-index.bin')
 model_index_path = os.path.join(efs_path, model_index_name)
 
-dim = int(os.environ.get('MODEL_DIM'))
+dim = 2*int(os.environ.get('MODEL_DIM'))
 model = SentenceTransformer(os.environ.get('MODEL_NAME'))
-model.max_seq_length = 500
-
 
 n_elements = 1000000
 doc_index = hnswlib.Index(space='cosine', dim=dim)
-doc_index.init_index(max_elements=n_elements, ef_construction=200, M=50)
+doc_index.init_index(max_elements=n_elements, ef_construction=2000, M=100)
 
 db = datastore.DocumentStore(documentTable, '')
 
@@ -56,7 +54,7 @@ def handler(event, context):
     log.info(
         f"\nParameters passed to constructor:  space={doc_index.space}, dim={doc_index.dim}")
 
-    doc_index.set_ef(200)
+    doc_index.set_ef(2000)
 
     log.info(
         "-- Index: Current number of items: "+str(doc_index.element_count))

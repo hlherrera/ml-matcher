@@ -20,7 +20,7 @@ import apiGW = require("@aws-cdk/aws-apigateway");
 
 import path = require("path");
 
-const THROUGHPUT_MB = 3;
+const THROUGHPUT_MB = 5;
 const ENV = process.env.ENV || "Dev";
 const BUS_EVENT = "TextractEventBus" + ENV;
 const BUS_EVENT_SOURCE = "textract.pipeline";
@@ -467,16 +467,16 @@ export class DocumentPipelineStack extends cdk.Stack {
     // VPC definition.
 
     let vpc;
-    if (ENV === "Dev") {
-      vpc = new ec2.Vpc(this, "vpcDocumentDev", {
+    if (ENV === "Prod") {
+      vpc = new ec2.Vpc(this, "vpcDocument" + ENV, {
         maxAzs: 2,
         natGateways: 1,
       });
     } else {
       // reuse VPC for costs
-      vpc = ec2.Vpc.fromLookup(this, "vpcDocument" + ENV, {
+      vpc = ec2.Vpc.fromLookup(this, "vpcDocumentDev", {
         isDefault: false,
-        vpcId: "vpc-04876d607aec74c20", //@todo
+        vpcId: "vpc-04876d607aec74c20", //@todo : buscar el id a reutilizar
       });
     }
 
@@ -517,7 +517,7 @@ export class DocumentPipelineStack extends cdk.Stack {
     });
 
     // Lambda function to code and index document.
-    const addDocumentFunction = new lambda.DockerImageFunction(
+    const inferenceDocumentFunction = new lambda.DockerImageFunction(
       this,
       "DocumentExecuteInference" + ENV,
       {
@@ -526,7 +526,7 @@ export class DocumentPipelineStack extends cdk.Stack {
           {}
         ),
         timeout: cdk.Duration.seconds(900),
-        memorySize: 10240,
+        memorySize: 6144,
         logRetention: 180,
         reservedConcurrentExecutions: 10,
         vpc,
@@ -546,18 +546,18 @@ export class DocumentPipelineStack extends cdk.Stack {
     );
 
     //permissions
-    addDocumentFunction.role?.addManagedPolicy(
+    inferenceDocumentFunction.role?.addManagedPolicy(
       iam.ManagedPolicy.fromAwsManagedPolicyName(
         "AmazonElasticFileSystemClientFullAccess"
       )
     );
-    addDocumentFunction.addToRolePolicy(
+    inferenceDocumentFunction.addToRolePolicy(
       new iam.PolicyStatement({
         actions: ["dynamodb:GetItem"],
         resources: [documentsTable.tableArn],
       })
     );
-    eventRuleInference.addTarget(new LambdaFunction(addDocumentFunction));
+    eventRuleInference.addTarget(new LambdaFunction(inferenceDocumentFunction));
 
     // api gateway
     const api = new apiGW.RestApi(this, "DocumentAPI" + ENV, {
@@ -669,7 +669,7 @@ export class DocumentPipelineStack extends cdk.Stack {
         },
       }
     );
-
+    //@todo
     /*const target = new autoscaling.ScalableTarget(
       this,
       "GetDocumentScalableTarget-" + ENV,

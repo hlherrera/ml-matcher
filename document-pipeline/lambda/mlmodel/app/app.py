@@ -8,6 +8,8 @@ import hnswlib
 import numpy as np
 from sentence_transformers import SentenceTransformer
 
+from resume import get_resume
+from skills import get_skills
 from utils import add_handler, init_logger
 
 documentTable = os.environ.get('DOCUMENTS_TABLE')
@@ -16,14 +18,12 @@ efs_path = os.environ.get('MODEL_PATH')
 model_index_name = os.environ.get('MODEL_INDEX_NAME', 'ml-index.bin')
 model_index_path = os.path.join(efs_path, model_index_name)
 
-dim = int(os.environ.get('MODEL_DIM'))
+dim = 2*int(os.environ.get('MODEL_DIM'))
 model = SentenceTransformer(os.environ.get('MODEL_NAME'))
-model.max_seq_length = 500
-
 
 n_elements = 1000000
 doc_index = hnswlib.Index(space='cosine', dim=dim)
-doc_index.init_index(max_elements=n_elements, ef_construction=200, M=50)
+doc_index.init_index(max_elements=n_elements, ef_construction=2000, M=100)
 
 db = datastore.DocumentStore(documentTable, '')
 
@@ -43,7 +43,7 @@ def save_in_index(data, label, log):
             "-- Index didn't load because is first time and file index not exist")
         pass
 
-    doc_index.set_ef(200)
+    doc_index.set_ef(2000)
 
     log.info(
         f"Index construction: M={doc_index.M}, ef_construction={doc_index.ef_construction}")
@@ -66,7 +66,8 @@ def handler(event, context):
 
     # Retrieve inputs
     log.info(f"INFO -- Retrieve Document Text")
-    text = event['detail']['text']
+    text = get_resume(event['detail']['text'])
+    skills = get_skills(event['detail']['text'])
     doc_id = event['detail']['documentId']
 
     document = db.getDocument(doc_id)
@@ -75,9 +76,11 @@ def handler(event, context):
     # Process input image
     log.info(f"INFO -- Processing Text")
     value = model.encode(text)
+    skills_value = model.encode(skills)
 
     log.info(f"INFO -- Saving indexes")
-    save_in_index(value, document['documentCreatedOn'], log)
+    save_in_index(np.concatenate((skills_value, value)),
+                  document['documentCreatedOn'], log)
 
     log.info(f"Returning data")
     response = {
