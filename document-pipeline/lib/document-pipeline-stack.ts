@@ -473,7 +473,7 @@ export class DocumentPipelineStack extends cdk.Stack {
         natGateways: 1,
       });
     } else {
-      // reuse VPC for costs
+      //@todo reuse VPC for costs
       vpc = ec2.Vpc.fromLookup(this, "vpcDocumentDev", {
         isDefault: false,
         vpcId: "vpc-04876d607aec74c20", //@todo : buscar el id a reutilizar
