@@ -526,7 +526,7 @@ export class DocumentPipelineStack extends cdk.Stack {
           {}
         ),
         timeout: cdk.Duration.seconds(900),
-        memorySize: 6144,
+        memorySize: 10240,
         logRetention: 180,
         reservedConcurrentExecutions: 10,
         vpc,
@@ -582,6 +582,7 @@ export class DocumentPipelineStack extends cdk.Stack {
         handler: "add.handler",
         memorySize: 1024,
         timeout: cdk.Duration.seconds(30),
+        logRetention: 180,
         environment: {
           BUCKET_NAME: contentBucket.bucketName,
           DOCUMENTS_TABLE: documentsTable.tableName,
@@ -623,6 +624,7 @@ export class DocumentPipelineStack extends cdk.Stack {
         handler: "get.handler",
         memorySize: 1024,
         timeout: cdk.Duration.seconds(30),
+        logRetention: 180,
         environment: {
           DOCUMENTS_TABLE: documentsTable.tableName,
           TABLE_GSI_NAME,
@@ -650,8 +652,8 @@ export class DocumentPipelineStack extends cdk.Stack {
             cmd: ["search.handler"],
           }
         ),
-        timeout: cdk.Duration.seconds(60),
-        memorySize: 5120,
+        timeout: cdk.Duration.seconds(45),
+        memorySize: 10240,
         logRetention: 180,
         reservedConcurrentExecutions: 10,
         vpc,

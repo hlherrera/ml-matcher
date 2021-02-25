@@ -26,4 +26,4 @@ def get_skills(text):
     expr_skills = [(ent[0][6:]+" and "+ent[0][6:] if ent[1] > 2 else ent[0][6:])
                    for ent in common_entities if 'skill' in ent[0].lower()]
 
-    return " or ".join(expr_skills).replace("-", " "), common_entities
+    return " or ".join(expr_skills).replace("-", " ")

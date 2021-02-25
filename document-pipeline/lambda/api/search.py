@@ -7,6 +7,7 @@ import datastore
 import hnswlib
 import numpy as np
 from sentence_transformers import SentenceTransformer
+from skills import get_skills
 from utils import add_handler, init_logger
 
 documentTable = os.environ.get('DOCUMENTS_TABLE')
@@ -18,9 +19,9 @@ model_index_path = os.path.join(efs_path, model_index_name)
 dim = 2*int(os.environ.get('MODEL_DIM'))
 model = SentenceTransformer(os.environ.get('MODEL_NAME'))
 
-n_elements = 1000000
+n_elements = 500000
 doc_index = hnswlib.Index(space='cosine', dim=dim)
-doc_index.init_index(max_elements=n_elements, ef_construction=2000, M=100)
+doc_index.init_index(max_elements=n_elements, ef_construction=400, M=84)
 
 db = datastore.DocumentStore(documentTable, '')
 
@@ -47,14 +48,16 @@ def handler(event, context):
 
     # Process input image
     log.info(f"INFO -- Processing Text")
-    value = model.encode(text)
+    txt_code = model.encode(text)
+    skills_code = model.encode(get_skills(text))
+    value = np.concatenate((skills_code, txt_code))
 
     log.info(f'-- Reading Index: {model_index_path}')
     doc_index.load_index(model_index_path, max_elements=n_elements)
     log.info(
         f"\nParameters passed to constructor:  space={doc_index.space}, dim={doc_index.dim}")
 
-    doc_index.set_ef(2000)
+    doc_index.set_ef(100)
 
     log.info(
         "-- Index: Current number of items: "+str(doc_index.element_count))
