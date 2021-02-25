@@ -35,7 +35,10 @@ Your pipeline runs at maximum throughput based on limits on your account. If nee
 ### Resources Generated
 
 DynamoDB is the central DB for document state storing.
-https://console.aws.amazon.com/dynamodb/home?region=[us-east-1]#tables:
+https://console.aws.amazon.com/dynamodb/home?region=[region]#tables:
+
+- ex.
+  https://console.aws.amazon.com/dynamodb/home?region=us-east-1#tables:
 
 - Tables:
   DocumentPipelineStack[ENV]-DocumentsTable[ENV][random-#]
