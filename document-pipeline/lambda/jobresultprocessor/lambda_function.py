@@ -8,10 +8,6 @@ import datastore
 from helper import AwsHelper
 from og import OutputGenerator
 
-TECH_WORDS = {}
-with open('tech.words.json') as json_file:
-    TECH_WORDS = json.load(json_file)
-
 
 def getJobResults(api, jobId):
 
@@ -90,10 +86,6 @@ def processRequest(request):
     opg = OutputGenerator(jobTag, pages, bucketName,
                           objectName, detectForms, detectTables, ddb)
     text = opg.run()
-
-    text = " ".join([TECH_WORDS.get(w.lower()) or w for w in re.split(
-        "\s+", re.sub(r"[():.,?!¡¿]", "", text)
-    )])
 
     print("DocumentId: {}".format(jobTag))
 
