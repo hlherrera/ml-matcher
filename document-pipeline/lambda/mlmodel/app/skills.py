@@ -3,7 +3,7 @@ from collections import Counter
 
 import spacy
 
-MAX_ENTITIES = 24
+MAX_ENTITIES = 40
 SKILLS_PATTERN_PATH = os.path.join(
     os.environ.get('LAMBDA_TASK_ROOT'),
     "skill_patterns.jsonl"

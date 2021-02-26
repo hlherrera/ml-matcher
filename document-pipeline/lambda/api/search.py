@@ -16,7 +16,7 @@ efs_path = os.environ.get('MODEL_PATH')
 model_index_name = os.environ.get('MODEL_INDEX_NAME', 'ml-index.bin')
 model_index_path = os.path.join(efs_path, model_index_name)
 
-dim = 2*int(os.environ.get('MODEL_DIM'))
+dim = int(os.environ.get('MODEL_DIM'))
 model = SentenceTransformer(os.environ.get('MODEL_NAME'))
 
 n_elements = 500000
@@ -48,9 +48,10 @@ def handler(event, context):
 
     # Process input image
     log.info(f"INFO -- Processing Text")
-    txt_code = model.encode(text)
+    #txt_code = model.encode(text)
     skills_code = model.encode(get_skills(text))
-    value = np.concatenate((skills_code, txt_code))
+    value = skills_code
+    #value = np.concatenate((skills_code, txt_code))
 
     log.info(f'-- Reading Index: {model_index_path}')
     doc_index.load_index(model_index_path, max_elements=n_elements)
